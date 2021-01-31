@@ -1,11 +1,23 @@
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [package]
 name = "zero2prod"
 version = "0.1.0"
 authors = ["rachl"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+path = "src/lib.rs"
+
+# double square brackets mean it's an array
+# can have many binaries, only one library
+[[bin]]
+path = "src/main.rs"
+name = "zero2prod"
 
 [dependencies]
 actix-rt = "1.1.1"
 actix-web = "3.3.2"
+
+[dev-dependencies]
+reqwest = "0.10"
+tokio   = "0.2.22"
