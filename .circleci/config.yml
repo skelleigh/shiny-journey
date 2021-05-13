@@ -1,5 +1,22 @@
-version: 2
+version: 2.1
+
+orbs:
+  buildevents: honeycombio/buildevents@0.2.8
+
 jobs:
+  
+  setup:
+    docker:
+      - image: circleci/rust
+    steps:
+      - buildevents/start_trace
+  
+  watch:
+    docker:
+      - image: circleci/rust
+    steps:
+      - buildevents/watch_build_and_finish
+
   build-and-test:
     docker:
       - image: circleci/rust
@@ -7,87 +24,92 @@ jobs:
       # Fail the build if there are warnings
       RUSTFLAGS: '-D warnings'
     steps:
-      - checkout
-      - run:
-          name: Version information
-          command: rustc --version; cargo --version; rustup --version
-      # If you have committed your Cargo.lock file to version control
-      # delete this step.
-      - run:
-          name: Calculate dependencies
-          command: cargo generate-lockfile
-      - restore_cache:
-          keys:
-            - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
-      - run:
-          name: Build all targets
-          command: cargo build
-      - save_cache:
-          paths:
-            - /usr/local/cargo/registry
-            - target/debug/.fingerprint
-            - target/debug/build
-            - target/debug/deps
-          key: v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
-      - run:
-          name: Run all tests
-          command: cargo test
+      - buildevents/with_job_span:
+        steps:
+          - checkout
+          - buildevents/berun:
+              bename: version_info
+              becommand: rustc --version; cargo --version; rustup --version
+          - buildevents/berun:
+              bename: gen_lockfile
+              becommand: cargo generate-lockfile
+          - restore_cache:
+              keys:
+                - v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+          - buildevents/berun:
+              bename: cargo_build
+              becommand: cargo build
+          - save_cache:
+              paths:
+                - /usr/local/cargo/registry
+                - target/debug/.fingerprint
+                - target/debug/build
+                - target/debug/deps
+              key: v1-cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+          - buildevents/berun:
+              bename: cargo_test
+              becommand: cargo test
 
   security:
     docker:
       - image: circleci/rust
     steps:
-      - checkout
-      - run:
-          name: Version information
-          command: rustc --version; cargo --version; rustup --version
-      - run:
-          name: Cache permission
-          command: |
-            sudo chown -R $(whoami):$(id -ng) /usr/local/cargo
-      - restore_cache:
-          keys:
-            - v1-cargo-audit-{{ arch }}
-      - run:
-          name: Install dependency auditing tool
-          command: cargo install cargo-audit
-      - save_cache:
-          paths:
-            - /usr/local/cargo
-          key: v1-cargo-audit-{{ arch }}
-      - run:
-          name: Check for known security issues in dependencies
-          command: cargo audit
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - buildevents/berun:
+                bename: version_info
+                becommand: rustc --version; cargo --version; rustup --version
+            - buildevents/berun:
+                bename: cache_permission
+                becommand: sudo chown -R $(whoami):$(id -ng) /usr/local/cargo
+            - restore_cache:
+                keys:
+                  - v1-cargo-audit-{{ arch }}
+            - buildevents/berun:
+                bename: install_cargo-audit
+                becommand: cargo install cargo-audit
+            - save_cache:
+                paths:
+                  - /usr/local/cargo
+                key: v1-cargo-audit-{{ arch }}
+            - buildevents/berun:
+                bename: audit
+                becommand: cargo audit
 
   format:
     docker:
       - image: circleci/rust
     steps:
-      - checkout
-      - run:
-          name: Version information
-          command: rustc --version; cargo --version; rustup --version
-      - run:
-          name: Install formatter
-          command: rustup component add rustfmt
-      - run:
-          name: Formatting
-          command: cargo fmt --all -- --check
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - buildevents/berun:
+                bename: version_info
+                becommand: rustc --version; cargo --version; rustup --version
+            - buildevents/berun:
+                bename: install_rustfmt
+                becommand: rustup component add rustfmt
+            - buildevents/berun:
+                bename: format
+                becommand: cargo fmt --all -- --check
 
   lint:
     docker:
       - image: circleci/rust
     steps:
-      - checkout
-      - run:
-          name: Version information
-          command: rustc --version; cargo --version; rustup --version
-      - run:
-          name: Install Clippy
-          command: rustup component add clippy
-      - run:
-          name: Linting
-          command: cargo clippy -- -D warnings
+      - buildevents/with_job_span:
+          steps:
+            - checkout
+            - buildevents/berun:
+                bename: version_info
+                becommand: rustc --version; cargo --version; rustup --version
+            - buildevents/berun:
+                bename: install_clippy
+                becommand: rustup component add clippy
+            - buildevents/berun:
+                bename: lint
+                becommand: cargo clippy -- -D warnings
 
   coverage:
     machine: true
@@ -101,19 +123,39 @@ workflows:
   version: 2
   build-test:
     jobs:
+      - setup:
+        filters:
+          tags:
+            only: /.*/
+      - watch:
+          requires:
+            - setup
+          filters:
+            tags:
+              only: /.*/
+            branches:
+              ignore: /pull\/.*/
       - build-and-test:
+          requires:
+            - setup
           filters:
             tags:
               only: /.*/
       - security:
+          requires:
+            - setup
           filters:
             tags:
               only: /.*/
       - format:
+          requires:
+            - setup
           filters:
             tags:
               only: /.*/
       - lint:
+          requires:
+            - setup
           filters:
             tags:
               only: /.*/
