@@ -97,13 +97,13 @@ jobs:
           steps:
             - checkout
             - buildevents/berun:
-                bename: Version information
+                bename: version_info
                 becommand: rustc --version; cargo --version; rustup --version
             - buildevents/berun:
-                bename: Install Clippy
+                bename: install_clippy
                 becommand: rustup component add clippy
             - buildevents/berun:
-                bename: Linting
+                bename: lint
                 becommand: cargo clippy -- -D warnings
 
   coverage:
