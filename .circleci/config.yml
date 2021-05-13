@@ -93,48 +93,32 @@ jobs:
     docker:
       - image: circleci/rust
     steps:
-      - checkout
-      - run:
-          name: Version information
-          command: rustc --version; cargo --version; rustup --version
-      - run:
-          name: Install Clippy
-          command: rustup component add clippy
-      - run:
-          name: Linting
-          command: cargo clippy -- -D warnings
-
-  coverage:
-    machine: true
-    steps:
       - buildevents/with_job_span:
           steps:
             - checkout
             - buildevents/berun:
-                bename: Coverage with docker
-                becommand: docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin cargo tarpaulin --ignore-tests
+                bename: Version information
+                becommand: rustc --version; cargo --version; rustup --version
+            - buildevents/berun:
+                bename: Install Clippy
+                becommand: rustup component add clippy
+            - buildevents/berun:
+                bename: Linting
+                becommand: cargo clippy -- -D warnings
+
+  coverage:
+    machine: true
+    steps:
+      - checkout
+      - run:
+          name: Coverage with docker
+          command: docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin cargo tarpaulin --ignore-tests
 
 workflows:
-  version: 2
+  version: 2.1
   build-test:
     jobs:
-      - build-and-test:
-          filters:
-            tags:
-              only: /.*/
-                #      - security:
-                #          filters:
-                #            tags:
-                #              only: /.*/
-                #      - format:
-                #          filters:
-                #            tags:
-                #              only: /.*/
-                #      - lint:
-                #          filters:
-                #            tags:
-                #              only: /.*/
-      - coverage:
+      - lint:
           requires:
             - setup
           filters:
