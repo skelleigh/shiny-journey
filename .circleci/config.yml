@@ -122,19 +122,21 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - security:
-          filters:
-            tags:
-              only: /.*/
-      - format:
-          filters:
-            tags:
-              only: /.*/
-      - lint:
-          filters:
-            tags:
-              only: /.*/
+                #      - security:
+                #          filters:
+                #            tags:
+                #              only: /.*/
+                #      - format:
+                #          filters:
+                #            tags:
+                #              only: /.*/
+                #      - lint:
+                #          filters:
+                #            tags:
+                #              only: /.*/
       - coverage:
+          requires:
+            - setup
           filters:
             tags:
               only: /.*/
