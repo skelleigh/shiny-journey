@@ -118,22 +118,18 @@ workflows:
   version: 2
   build-test:
     jobs:
-      - build-and-test:
+      - setup:
           filters:
             tags:
               only: /.*/
-                #      - security:
-                #          filters:
-                #            tags:
-                #              only: /.*/
-                #      - format:
-                #          filters:
-                #            tags:
-                #              only: /.*/
-                #      - lint:
-                #          filters:
-                #            tags:
-                #              only: /.*/
+      - watch:
+          requires:
+            - setup
+          filters:
+            tags:
+              only: /.*/
+            branches:
+              ignore: /pull\/.*/
       - coverage:
           requires:
             - setup
