@@ -1,45 +1,19 @@
 version: 2.1
 
-# factored out start/finish_job_span commands here so we don't have every one of our build jobs duplicating them
-commands:
-  with_job_span:
-    parameters:
-      steps:
-        type: steps
-    steps:
-      - attach_workspace:
-          at: buildevents
-      - run:
-          name: starting span for job
-          command: |
-            echo "STEP_START=$(date +%s)" >> $BASH_ENV
-            echo "STEP_SPAN_ID=$(echo $CIRCLE_JOB | sum | cut -f 1 -d \ )" >> $BASH_ENV
-      - run: echo "PATH=$PATH:buildevents/bin/" >> $BASH_ENV
-      - steps: << parameters.steps >>
-      - run:
-          name: finishing span for job
-          command: buildevents step $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID $STEP_START $CIRCLE_JOB
-          when: always
+orbs:
+  buildevents: honeycombio/buildevents@0.2.8
 
 jobs:
   setup:
+    docker:
+      - image: circleci/rust
     steps:
-      - run: |
-          mkdir -p buildevents/bin
-          date +%s > buildevents/build_start
-      - run: |
-          curl -L -o buildevents https://github.com/honeycombio/buildevents/releases/latest/download/buildevents-linux-386
-          chmod 755 buildevents
-      - persist_to_workspace:
-          root: buildevents
-          paths:
-            - build_start
-            - bin/buildevents
-  send_trace:
+      - buildevents/start_trace
+  watch:
+    docker:
+      - image: circleci/rust
     steps:
-      - attach_workspace:
-          at: buildevents
-      - run: buildevents watch $CIRCLE_WORKFLOW_ID
+      - buildevents/watch_build_and_finish
 
   build-and-test:
     docker:
@@ -133,15 +107,15 @@ jobs:
   coverage:
     machine: true
     steps:
-      - checkout
-      - with_job_span:
+      - buildevents/with_job_span:
         steps:
-          - run:
-            name: Coverage with docker
-            command:  buildevents cmd $CIRCLE_WORKFLOW_ID $STEP_SPAN_ID coverage -- docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin cargo tarpaulin --ignore-tests
+          - checkout
+      - buildevents/berun:
+        bename: Coverage with docker
+        becommand: docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin cargo tarpaulin --ignore-tests
 
 workflows:
-  version: 2.1
+  version: 2
   build-test:
     jobs:
       - build-and-test:
