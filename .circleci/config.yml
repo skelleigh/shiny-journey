@@ -111,8 +111,8 @@ jobs:
           steps:
             - checkout
             - buildevents/berun:
-              bename: Coverage with docker
-              becommand: docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin cargo tarpaulin --ignore-tests
+                bename: Coverage with docker
+                becommand: docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin cargo tarpaulin --ignore-tests
 
 workflows:
   version: 2
